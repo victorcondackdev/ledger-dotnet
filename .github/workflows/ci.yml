@@ -132,7 +132,7 @@ jobs:
           repository: victorcondackdev/ledger-go
           path: ledger-go
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version-file: ledger-go/go.mod
 
