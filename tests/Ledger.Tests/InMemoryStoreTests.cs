@@ -166,7 +166,7 @@ public class InMemoryStoreTests
             }
         })).ToArray();
         bool[] results = await Task.WhenAll(creators);
-        Assert.Single(results.Where(r => r));
+        Assert.Single(results, r => r);
 
         using var cts = new CancellationTokenSource();
         cts.Cancel();
