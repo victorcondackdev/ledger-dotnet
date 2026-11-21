@@ -1,0 +1,149 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+
+jobs:
+  build:
+    name: Build, test and pack
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: SDK info
+        run: dotnet --info
+
+      - name: Restore
+        run: dotnet restore Ledger.sln
+
+      - name: Build (warnings are errors; includes samples and benchmarks)
+        run: dotnet build Ledger.sln -c Release --no-restore
+
+      - name: Test
+        run: >
+          dotnet test tests/Ledger.Tests/Ledger.Tests.csproj -c Release --no-build
+          --collect:"XPlat Code Coverage"
+          --results-directory TestResults
+          --logger "trx;LogFileName=results.trx"
+          --logger "console;verbosity=normal"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: TestResults/
+          if-no-files-found: ignore
+
+      - name: Demo output matches the Go demo byte for byte
+        run: |
+          dotnet run --project samples/Ledger.Demo -c Release --no-build > demo-output.txt
+          diff -u samples/Ledger.Demo/expected-output.txt demo-output.txt
+
+      - name: Pack
+        run: dotnet pack src/Ledger/Ledger.csproj -c Release --no-build -o artifacts
+
+      - name: Upload package
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget
+          path: artifacts/*nupkg
+          if-no-files-found: error
+
+      - name: Check formatting
+        continue-on-error: true
+        run: dotnet format Ledger.sln --verify-no-changes --no-restore --verbosity diagnostic
+
+  invariant-globalization:
+    name: Tests under invariant globalization
+    runs-on: ubuntu-latest
+    env:
+      DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Test
+        run: dotnet test tests/Ledger.Tests/Ledger.Tests.csproj -c Release --logger "console;verbosity=minimal"
+
+  trimming:
+    name: Trimming smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      # IsAotCompatible enables the trim, AOT and single-file analyzers during the
+      # normal build; publishing a trimmed console app that references the library
+      # additionally proves there are no ILLink warnings at the consumer side.
+      - name: Publish trimmed consumer
+        run: |
+          mkdir -p /tmp/aotcheck && cd /tmp/aotcheck
+          dotnet new console --force -o . -n AotCheck
+          dotnet add reference "$GITHUB_WORKSPACE/src/Ledger/Ledger.csproj"
+          cat > Program.cs <<'CS'
+          using Ledger;
+          using Ledger.InMemory;
+          using Ledger.Monetary;
+          var l = new GeneralLedger(new InMemoryLedgerStore());
+          await l.OpenAccountAsync(new Account { Id = "a", Currency = Currency.BRL, Type = AccountType.Asset });
+          await l.OpenAccountAsync(new Account { Id = "b", Currency = Currency.BRL, Type = AccountType.Liability });
+          var amount = Money.Parse(Currency.BRL, "10.00");
+          await l.PostAsync(new PostRequest { Postings = new[] { Posting.Debit("a", amount), Posting.Credit("b", amount) } });
+          var head = await l.VerifyChainAsync();
+          System.Console.WriteLine(head.Seq + " " + head.Hash);
+          CS
+          dotnet publish -c Release -r linux-x64 --self-contained -p:PublishTrimmed=true -p:TreatWarningsAsErrors=true -o out
+          ./out/AotCheck
+
+  parity:
+    name: Regenerate Go parity vectors
+    runs-on: ubuntu-latest
+    # Requires the Go implementation to be reachable; informative until it is public.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: ledger-dotnet
+
+      - uses: actions/checkout@v4
+        with:
+          repository: victorcondackdev/ledger-go
+          path: ledger-go
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: ledger-go/go.mod
+
+      - name: Vectors are up to date
+        working-directory: ledger-dotnet
+        run: |
+          go -C tools/vecgen run . > tests/Ledger.Tests/Parity/GoVectors.g.cs
+          git diff --exit-code -- tests/Ledger.Tests/Parity/GoVectors.g.cs
+
+      - name: Demo output is up to date
+        working-directory: ledger-go
+        run: |
+          go run ./cmd/ledger-demo > /tmp/go-demo.txt
+          diff -u ../ledger-dotnet/samples/Ledger.Demo/expected-output.txt /tmp/go-demo.txt

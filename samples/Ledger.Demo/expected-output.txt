@@ -1,0 +1,30 @@
+
+Statement Alice (liab:wallet:alice)
+   time  seq           description     phase       amount      balance    available
+  09:00    1          Pix received    posted  R$ 1.500,00  R$ 1.500,00  R$ 1.500,00
+  09:14    3            Pix to Bob    posted   -R$ 320,99  R$ 1.179,01  R$ 1.179,01
+  09:21    4     Card auth Padaria      held    -R$ 89,90  R$ 1.179,01  R$ 1.089,11
+  09:28    5  Card capture Padaria  released     R$ 89,90  R$ 1.179,01  R$ 1.179,01
+  09:28    5  Card capture Padaria    posted    -R$ 74,35  R$ 1.104,66  R$ 1.104,66
+  09:49    8      Pix refund (MED)    posted    R$ 320,99  R$ 1.425,65  R$ 1.425,65
+
+Statement Bob (liab:wallet:bob)
+   time  seq              description     phase      amount    balance  available
+  09:07    2             Pix received    posted   R$ 200,00  R$ 200,00  R$ 200,00
+  09:14    3               Pix to Bob    posted   R$ 320,00  R$ 520,00  R$ 520,00
+  09:35    6                MED block      held  -R$ 320,00  R$ 520,00  R$ 200,00
+  09:42    7  MED released for refund  released   R$ 320,00  R$ 520,00  R$ 520,00
+  09:49    8         Pix refund (MED)    posted  -R$ 320,00  R$ 200,00  R$ 200,00
+
+Trial balance
+    code                account   debits  credits  balance
+  1.1.01   asset:bacen-reserves  1700.00     0.00  1700.00
+  2.1.10  liab:merchant:padaria     0.00    74.35    74.35
+  2.2.01   liab:payable:partner     0.30     0.30     0.00
+  2.1.01      liab:wallet:alice   395.34  1820.99  1425.65
+  2.1.02        liab:wallet:bob   320.00   520.00   200.00
+  3.1.01           rev:pix-fees     0.69     0.69     0.00
+                          total  2416.33  2416.33         
+-------------------- balanced
+
+audit chain verified: 8 transactions, head f0f5f05415d463e0

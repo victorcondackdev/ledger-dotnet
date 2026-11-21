@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>Ledger</RootNamespace>
+    <AssemblyName>Ledger</AssemblyName>
+    <IsAotCompatible>true</IsAotCompatible>
+    <IsTrimmable>true</IsTrimmable>
+  </PropertyGroup>
+
+  <PropertyGroup Label="NuGet">
+    <PackageId>Ledger</PackageId>
+    <Version>0.1.0</Version>
+    <Authors>Victor Condack</Authors>
+    <Description>Double-entry ledger core for .NET: exact money with ISO 4217 exponents and largest-remainder allocation, balanced multi-leg transactions, idempotent posting, two-phase transfers (hold, capture, void, expiry), reversals, point-in-time balances, paginated statements, trial balance and a SHA-256 hash-chained audit log that is byte-identical to the Go implementation.</Description>
+    <PackageTags>ledger;double-entry;accounting;fintech;money;payments;pix;audit</PackageTags>
+    <RepositoryUrl>https://github.com/victorcondackdev/ledger-dotnet</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageProjectUrl>https://github.com/victorcondackdev/ledger-dotnet</PackageProjectUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <Copyright>Copyright (c) 2026 Victor Condack</Copyright>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../../README.md" Pack="true" PackagePath="/" Visible="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Ledger.Tests" />
+  </ItemGroup>
+
+</Project>
